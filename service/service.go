@@ -111,6 +111,8 @@ func New(data, dev, mnt, vol, volGlob, bindfs string) Service {
 			data = path.Join(v, ".csi-vfs")
 		}
 	}
+	os.MkdirAll(data, 0755)
+	resolveSymlink(&data)
 
 	if dev == "" {
 		dev = os.Getenv(DevDirEnvVar)
@@ -119,6 +121,7 @@ func New(data, dev, mnt, vol, volGlob, bindfs string) Service {
 		dev = path.Join(data, "dev")
 	}
 	os.MkdirAll(dev, 0755)
+	resolveSymlink(&dev)
 
 	if mnt == "" {
 		mnt = os.Getenv(MntDirEnvVar)
@@ -127,6 +130,7 @@ func New(data, dev, mnt, vol, volGlob, bindfs string) Service {
 		mnt = path.Join(data, "mnt")
 	}
 	os.MkdirAll(mnt, 0755)
+	resolveSymlink(&mnt)
 
 	if vol == "" {
 		vol = os.Getenv(VolDirEnvVar)
@@ -135,6 +139,7 @@ func New(data, dev, mnt, vol, volGlob, bindfs string) Service {
 		vol = path.Join(data, "vol")
 	}
 	os.MkdirAll(vol, 0755)
+	resolveSymlink(&vol)
 
 	if volGlob == "" {
 		volGlob = os.Getenv(VolGlobEnvVar)
@@ -548,6 +553,7 @@ func (s *service) NodePublishVolume(
 	devPath := path.Join(s.dev, volName)
 	mntPath := path.Join(s.mnt, volName)
 	tgtPath := req.TargetPath
+	resolveSymlink(&tgtPath)
 
 	if !fileExists(devPath) {
 		log.WithField("path", devPath).Error(
@@ -576,11 +582,25 @@ func (s *service) NodePublishVolume(
 		return nil, err
 	}
 	isPrivMounted := false
+	isTgtMounted := false
 	for _, i := range minfo {
 		if i.Device == devPath && i.Path == mntPath {
 			isPrivMounted = true
-			break
 		}
+		if i.Device == mntPath && i.Path == tgtPath {
+			isTgtMounted = true
+		}
+	}
+
+	success := &csi.NodePublishVolumeResponse{
+		Reply: &csi.NodePublishVolumeResponse_Result_{
+			Result: &csi.NodePublishVolumeResponse_Result{},
+		},
+	}
+
+	if isTgtMounted {
+		log.WithField("path", tgtPath).Info("already mounted")
+		return success, nil
 	}
 
 	// If the devie is not already mounted into the private mount
@@ -622,11 +642,7 @@ func (s *service) NodePublishVolume(
 		return nil, err
 	}
 
-	return &csi.NodePublishVolumeResponse{
-		Reply: &csi.NodePublishVolumeResponse_Result_{
-			Result: &csi.NodePublishVolumeResponse_Result{},
-		},
-	}, nil
+	return success, nil
 }
 
 func (s *service) NodeUnpublishVolume(
@@ -650,6 +666,7 @@ func (s *service) NodeUnpublishVolume(
 	volName := path.Base(volPath)
 	mntPath := path.Join(s.mnt, volName)
 	tgtPath := req.TargetPath
+	resolveSymlink(&tgtPath)
 
 	// Get the node's mount information.
 	minfo, err := mount.GetMounts()
@@ -800,4 +817,13 @@ func fileExists(filePath string) bool {
 		return true
 	}
 	return false
+}
+
+func resolveSymlink(symPath *string) error {
+	realPath, err := filepath.EvalSymlinks(*symPath)
+	if err != nil {
+		return err
+	}
+	*symPath = realPath
+	return nil
 }
