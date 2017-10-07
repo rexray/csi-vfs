@@ -17,7 +17,7 @@ import (
 	xctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"github.com/codedellemc/csi-vfs/service"
+	"github.com/thecodeteam/csi-vfs/service"
 )
 
 var (
