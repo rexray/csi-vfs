@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	// SupportedVersions is a list of the versions this CSI plug-in supports.
+	// SupportedVersions is a list of supported CSI versions.
 	SupportedVersions = []*csi.Version{
 		&csi.Version{
 			Major: 0,
