@@ -7,12 +7,9 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strconv"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/thecodeteam/gocsi"
 	"github.com/thecodeteam/gocsi/csi"
@@ -375,25 +372,10 @@ func (s *service) ValidateVolumeCapabilities(
 	}, nil
 }
 
-// GRPCMetadataTargetPaths is the key in gRPC metatdata that is set
-// to "true" if a ListVolumes RPC should return VolumeInfo objects
-// with associated mount path information.
-const GRPCMetadataTargetPaths = "rexray.docker2csi.targetpaths"
-
 func (s *service) ListVolumes(
 	ctx context.Context,
 	req *csi.ListVolumesRequest) (
 	*csi.ListVolumesResponse, error) {
-
-	// Check to see if mount path information should be returned.
-	var mntDir string
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		if v, ok := md[GRPCMetadataTargetPaths]; ok && len(v) > 0 {
-			if v, _ := strconv.ParseBool(v[0]); v {
-				mntDir = s.mnt
-			}
-		}
-	}
 
 	fileNames, err := filepath.Glob(s.volGlob)
 	if err != nil {
@@ -402,7 +384,7 @@ func (s *service) ListVolumes(
 	entries := []*csi.ListVolumesResponse_Result_Entry{}
 	for _, volPath := range fileNames {
 		volName := path.Base(volPath)
-		volInfo, err := GetVolumeInfo(ctx, volName, mntDir)
+		volInfo, err := GetVolumeInfo(ctx, volName)
 		if err != nil {
 			return nil, err
 		}
@@ -900,31 +882,10 @@ func GetVolumeMountPaths(
 
 // GetVolumeInfo returns a csi.VolumeInfo object about the specified
 // volume, possibly including mount information.
-func GetVolumeInfo(
-	ctx context.Context, volumeID, mntDir string) (csi.VolumeInfo, error) {
-
-	vi := csi.VolumeInfo{
+func GetVolumeInfo(ctx context.Context, id string) (csi.VolumeInfo, error) {
+	return csi.VolumeInfo{
 		Id: &csi.VolumeID{
-			Values: map[string]string{"id": volumeID},
+			Values: map[string]string{"id": id},
 		},
-	}
-
-	if mntDir == "" {
-		return vi, nil
-	}
-
-	mountPaths, err := GetVolumeMountPaths(ctx, mntDir, volumeID)
-	if err != nil {
-		return vi, err
-	}
-
-	if len(mountPaths) > 0 {
-		vi.Metadata = &csi.VolumeMetadata{
-			Values: map[string]string{
-				"targetpaths": strings.Join(mountPaths, ","),
-			},
-		}
-	}
-
-	return vi, err
+	}, nil
 }

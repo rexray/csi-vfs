@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"net"
 	"path"
-	"strconv"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/thecodeteam/gocsi"
 	"github.com/thecodeteam/gocsi/csi"
 	"github.com/thecodeteam/gocsi/mount"
 	"github.com/thecodeteam/goioc"
-	log "github.com/sirupsen/logrus"
 	xctx "golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/thecodeteam/csi-vfs/service"
 )
@@ -246,21 +244,11 @@ func (i *vfsIdemProvider) GetVolumeInfo(
 	ctx xctx.Context,
 	name string) (*csi.VolumeInfo, error) {
 
-	// Check to see if mount path information should be returned.
-	var mntDir string
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		if v, ok := md[service.GRPCMetadataTargetPaths]; ok && len(v) > 0 {
-			if v, _ := strconv.ParseBool(v[0]); v {
-				mntDir = i.mnt
-			}
-		}
-	}
-
 	volPath := path.Join(i.vol, name)
 	if !service.FileExists(volPath) {
 		return nil, nil
 	}
-	volInfo, err := service.GetVolumeInfo(ctx, name, mntDir)
+	volInfo, err := service.GetVolumeInfo(ctx, name)
 	if err != nil {
 		return nil, err
 	}
