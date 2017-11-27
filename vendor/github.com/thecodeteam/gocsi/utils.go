@@ -1,51 +1,61 @@
 package gocsi
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 
-	"github.com/thecodeteam/gocsi/csi"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 )
-
-// Version is a type that responds with Major, Minor, and Patch
-// information typical of a semantic version.
-type Version interface {
-	GetMajor() uint32
-	GetMinor() uint32
-	GetPatch() uint32
-}
 
 const maxuint32 = 4294967295
 
-// ParseVersion parses any string that matches \d+\.\d+\.\d+ and
-// returns a Version.
-func ParseVersion(s string) (Version, error) {
-	var major uint32
-	var minor uint32
-	var patch uint32
-	n, err := fmt.Sscanf(s, "%d.%d.%d", &major, &minor, &patch)
-	if err != nil {
-		return nil, err
+// ParseVersion parses a string for a CSI version.
+func ParseVersion(s string) (csi.Version, bool) {
+	if versions := ParseVersions(s); len(versions) > 0 {
+		return versions[0], true
 	}
-	if n != 3 {
-		return nil, fmt.Errorf("error: parsed %d vals", n)
+	return csi.Version{}, false
+}
+
+// ParseVersions parses a string for one or more CSI versions.
+func ParseVersions(s string) []csi.Version {
+	if s == "" {
+		return nil
 	}
-	return &csi.Version{
-		Major: major,
-		Minor: minor,
-		Patch: patch,
-	}, nil
+
+	rx := regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
+	matches := rx.FindAllStringSubmatch(s, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	versions := make([]csi.Version, len(matches))
+	for i, m := range matches {
+		major, _ := strconv.Atoi(m[1])
+		minor, _ := strconv.Atoi(m[2])
+		patch, _ := strconv.Atoi(m[3])
+		versions[i].Major = uint32(major)
+		versions[i].Minor = uint32(minor)
+		versions[i].Patch = uint32(patch)
+	}
+
+	return versions
 }
 
 // SprintfVersion formats a Version as a string.
-func SprintfVersion(v Version) string {
-	if v == nil {
-		return ""
-	}
-	return fmt.Sprintf("%d.%d.%d", v.GetMajor(), v.GetMinor(), v.GetPatch())
+func SprintfVersion(v csi.Version) string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
+// FprintfVersion formats a Version as a string to the specified writer.
+func FprintfVersion(w io.Writer, v csi.Version) (int, error) {
+	return fmt.Fprintf(w, "%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
 // CompareVersions compares two versions and returns:
@@ -53,7 +63,7 @@ func SprintfVersion(v Version) string {
 //   -1 if a > b
 //    0 if a = b
 //    1 if a < b
-func CompareVersions(a, b Version) int8 {
+func CompareVersions(a, b *csi.Version) int8 {
 	if a == nil && b == nil {
 		return 0
 	}
@@ -63,22 +73,22 @@ func CompareVersions(a, b Version) int8 {
 	if a == nil && b != nil {
 		return 1
 	}
-	if a.GetMajor() > b.GetMajor() {
+	if a.Major > b.Major {
 		return -1
 	}
-	if a.GetMajor() < b.GetMajor() {
+	if a.Major < b.Major {
 		return 1
 	}
-	if a.GetMinor() > b.GetMinor() {
+	if a.Minor > b.Minor {
 		return -1
 	}
-	if a.GetMinor() < b.GetMinor() {
+	if a.Minor < b.Minor {
 		return 1
 	}
-	if a.GetPatch() > b.GetPatch() {
+	if a.Patch > b.Patch {
 		return -1
 	}
-	if a.GetPatch() < b.GetPatch() {
+	if a.Patch < b.Patch {
 		return 1
 	}
 	return 0
@@ -169,4 +179,89 @@ func ParseProtoAddr(protoAddr string) (proto string, addr string, err error) {
 		return "", "", fmt.Errorf("invalid network address: %s", protoAddr)
 	}
 	return m[1], m[2], nil
+}
+
+// ParseMap parses a string into a map. The string's expected pattern is:
+//
+//         KEY1=VAL1 KEY2="VAL2 " "KEY 3"=' VAL3'
+//
+// The key/value pairs are separated by one or more whitespace characters.
+// Keys and/or values with whitespace should be quoted with either single
+// or double quotes.
+func ParseMap(line string) map[string]string {
+	if line == "" {
+		return nil
+	}
+
+	var (
+		escp bool
+		quot rune
+		ckey string
+		keyb = &bytes.Buffer{}
+		valb = &bytes.Buffer{}
+		word = keyb
+		data = map[string]string{}
+	)
+
+	for i, c := range line {
+		// Check to see if the character is a quote character.
+		switch c {
+		case '\\':
+			// If not already escaped then activate escape.
+			if !escp {
+				escp = true
+				continue
+			}
+		case '\'', '"':
+			// If the quote or double quote is the first char or
+			// an unescaped char then determine if this is the
+			// beginning of a quote or end of one.
+			if i == 0 || !escp {
+				if quot == c {
+					quot = 0
+				} else {
+					quot = c
+				}
+				continue
+			}
+		case '=':
+			// If the word buffer is currently the key buffer,
+			// quoting is not enabled, and the preceeding character
+			// is not the escape character then the equal sign indicates
+			// a transition from key to value.
+			if word == keyb && quot == 0 && !escp {
+				ckey = keyb.String()
+				keyb.Reset()
+				word = valb
+				continue
+			}
+		case ' ', '\t':
+			// If quoting is not enabled and the preceeding character is
+			// not the escape character then record the value into the
+			// map and fast-forward the cursor to the next, non-whitespace
+			// character.
+			if quot == 0 && !escp {
+				// Record the value into the map for the current key.
+				if ckey != "" {
+					data[ckey] = valb.String()
+					valb.Reset()
+					word = keyb
+					ckey = ""
+				}
+				continue
+			}
+		}
+		if escp {
+			escp = false
+		}
+		word.WriteRune(c)
+	}
+
+	// If the current key string is not empty then record it with the value
+	// buffer's string value as a new pair.
+	if ckey != "" {
+		data[ckey] = valb.String()
+	}
+
+	return data
 }
