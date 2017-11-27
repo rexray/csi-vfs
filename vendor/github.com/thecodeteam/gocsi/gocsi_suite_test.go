@@ -3,11 +3,14 @@ package gocsi_test
 import (
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
 
 	"testing"
 )
 
 func TestGocsi(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	log.SetOutput(GinkgoWriter)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "GoCSI Suite")
 }

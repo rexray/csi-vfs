@@ -40,7 +40,25 @@ $ go get github.com/thecodeteam/gocsi
 $ go install github.com/thecodeteam/gocsi/csc
 ```
 
-## Configuring the Plug-in
+## Configuration
+The CSI-VFS SP is built using the GoCSI CSP package. Please
+see its
+[configuration section](https://github.com/thecodeteam/gocsi/tree/master/csp#configuration)
+for a complete list of the environment variables that may be used to
+configure this SP.
+
+The following table is a list of this SP's default configuration values:
+
+| Name | Value |
+|------|---------|
+| `X_CSI_IDEMP` | `true` |
+| `X_CSI_IDEMP_REQUIRE_VOL` | `true` |
+| `X_CSI_REQUIRE_NODE_ID` | `true` |
+| `X_CSI_REQUIRE_PUB_VOL_INFO` | `true` |
+| `X_CSI_CREATE_VOL_ALREADY_EXISTS` | `true` |
+| `X_CSI_DELETE_VOL_NOT_FOUND` | `true` |
+| `X_CSI_SUPPORTED_VERSIONS` | `0.0.0 0.1.0` |
+
 The VFS plug-in attempts to approximate the normal workflow of a storage platform
 by having separate directories for volumes, devices, and private mounts. These
 directories can be configured with the following environment variables:
