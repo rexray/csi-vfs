@@ -3,12 +3,15 @@ package csp
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/signal"
+	"os/user"
+	"regexp"
 	"strconv"
 	"sync"
 	"syscall"
@@ -37,11 +40,11 @@ func Run(
 	}
 
 	// Adjust the log level.
-	var lvl log.Level
+	lvl := log.InfoLevel
 	if v, ok := gocsi.LookupEnv(ctx, EnvVarLogLevel); ok {
 		var err error
 		if lvl, err = log.ParseLevel(v); err != nil {
-			lvl = log.WarnLevel
+			lvl = log.InfoLevel
 		}
 	}
 	log.SetLevel(lvl)
@@ -94,15 +97,18 @@ func Run(
 
 	// Define a lambda that can be used in the exit handler
 	// to remove a potential UNIX sock file.
+	var rmSockFileOnce sync.Once
 	rmSockFile := func() {
-		if l == nil || l.Addr() == nil {
-			return
-		}
-		if l.Addr().Network() == "unix" {
-			sockFile := l.Addr().String()
-			os.RemoveAll(sockFile)
-			log.WithField("path", sockFile).Info("removed sock file")
-		}
+		rmSockFileOnce.Do(func() {
+			if l == nil || l.Addr() == nil {
+				return
+			}
+			if l.Addr().Network() == netUnix {
+				sockFile := l.Addr().String()
+				os.RemoveAll(sockFile)
+				log.WithField("path", sockFile).Info("removed sock file")
+			}
+		})
 	}
 
 	trapSignals(func() {
@@ -116,8 +122,8 @@ func Run(
 	})
 
 	if err := sp.Serve(ctx, l); err != nil {
+		rmSockFile()
 		log.WithError(err).Fatal("grpc failed")
-		os.Exit(1)
 	}
 }
 
@@ -211,8 +217,22 @@ func (sp *StoragePlugin) Serve(ctx context.Context, lis net.Listener) error {
 		// to search this SP's default env vars for a value.
 		ctx = gocsi.WithLookupEnv(ctx, sp.lookupEnv)
 
+		// Adding this function to the context allows `gocsi.Setenv`
+		// to set environment variables in this SP's env var store.
+		ctx = gocsi.WithSetenv(ctx, sp.setenv)
+
 		// Initialize the storage plug-in's environment variables map.
 		sp.initEnvVars(ctx)
+
+		// Adjust the endpoint's file permissions.
+		if err = sp.initEndpointPerms(ctx, lis); err != nil {
+			return
+		}
+
+		// Adjust the endpoint's file ownership.
+		if err = sp.initEndpointOwner(ctx, lis); err != nil {
+			return
+		}
 
 		// Initialize the storage plug-in's list of supported versions.
 		sp.initSupportedVersions(ctx)
@@ -241,14 +261,55 @@ func (sp *StoragePlugin) Serve(ctx context.Context, lis net.Listener) error {
 		sp.server = grpc.NewServer(sp.ServerOpts...)
 
 		// Register the CSI services.
-		if s := sp.Controller; s != nil {
-			csi.RegisterControllerServer(sp.server, s)
+		// Always require the identity service.
+		if sp.Identity == nil {
+			err = errors.New("identity service is required")
+			return
 		}
-		if s := sp.Identity; s != nil {
-			csi.RegisterIdentityServer(sp.server, s)
+		// Either a Controller or Node service should be supplied.
+		if sp.Controller == nil && sp.Node == nil {
+			err = errors.New(
+				"either a controller or node service is required")
+			return
 		}
-		if s := sp.Node; s != nil {
-			csi.RegisterNodeServer(sp.server, s)
+
+		// Always register the identity service.
+		csi.RegisterIdentityServer(sp.server, sp.Identity)
+		log.Info("identity service registered")
+
+		// Determine which of the controller/node services to register
+		csvc := sp.getEnvBool(ctx, EnvVarCtrlSvcOnly)
+		nsvc := sp.getEnvBool(ctx, EnvVarNodeSvcOnly)
+
+		if csvc && nsvc {
+			err = fmt.Errorf(
+				"invalid service restriction: %s=true %s=true",
+				EnvVarCtrlSvcOnly, EnvVarCtrlSvcOnly)
+			return
+		}
+		if csvc {
+			if sp.Controller == nil {
+				err = errors.New("controller service is required")
+				return
+			}
+			csi.RegisterControllerServer(sp.server, sp.Controller)
+			log.Info("controller service registered")
+		} else if nsvc {
+			if sp.Node == nil {
+				err = errors.New("node service is required")
+				return
+			}
+			csi.RegisterNodeServer(sp.server, sp.Node)
+			log.Info("node service registered")
+		} else {
+			if sp.Controller != nil {
+				csi.RegisterControllerServer(sp.server, sp.Controller)
+				log.Info("controller service registered")
+			}
+			if sp.Node != nil {
+				csi.RegisterNodeServer(sp.server, sp.Node)
+				log.Info("node service registered")
+			}
 		}
 
 		endpoint := fmt.Sprintf(
@@ -285,9 +346,133 @@ func (sp *StoragePlugin) GracefulStop(ctx context.Context) {
 	})
 }
 
+const netUnix = "unix"
+
+func (sp *StoragePlugin) initEndpointPerms(
+	ctx context.Context, lis net.Listener) error {
+
+	if lis.Addr().Network() != netUnix {
+		return nil
+	}
+
+	v, ok := gocsi.LookupEnv(ctx, EnvVarEndpointPerms)
+	if !ok || v == "0755" {
+		return nil
+	}
+	u, err := strconv.ParseUint(v, 8, 32)
+	if err != nil {
+		return err
+	}
+
+	p := lis.Addr().String()
+	m := os.FileMode(u)
+
+	log.WithFields(map[string]interface{}{
+		"path": p,
+		"mode": m,
+	}).Info("chmod csi endpoint")
+
+	if err := os.Chmod(p, m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sp *StoragePlugin) initEndpointOwner(
+	ctx context.Context, lis net.Listener) error {
+
+	if lis.Addr().Network() != netUnix {
+		return nil
+	}
+
+	var (
+		usrName string
+		grpName string
+
+		uid  = os.Getuid()
+		gid  = os.Getgid()
+		puid = uid
+		pgid = gid
+	)
+
+	if v, ok := gocsi.LookupEnv(ctx, EnvVarEndpointUser); ok {
+		m, err := regexp.MatchString(`^\d+$`, v)
+		if err != nil {
+			return err
+		}
+		usrName = v
+		szUID := v
+		if m {
+			u, err := user.LookupId(v)
+			if err != nil {
+				return err
+			}
+			usrName = u.Username
+		} else {
+			u, err := user.Lookup(v)
+			if err != nil {
+				return err
+			}
+			szUID = u.Uid
+		}
+		iuid, err := strconv.Atoi(szUID)
+		if err != nil {
+			return err
+		}
+		uid = iuid
+	}
+
+	if v, ok := gocsi.LookupEnv(ctx, EnvVarEndpointGroup); ok {
+		m, err := regexp.MatchString(`^\d+$`, v)
+		if err != nil {
+			return err
+		}
+		grpName = v
+		szGID := v
+		if m {
+			u, err := user.LookupGroupId(v)
+			if err != nil {
+				return err
+			}
+			grpName = u.Name
+		} else {
+			u, err := user.LookupGroup(v)
+			if err != nil {
+				return err
+			}
+			szGID = u.Gid
+		}
+		igid, err := strconv.Atoi(szGID)
+		if err != nil {
+			return err
+		}
+		gid = igid
+	}
+
+	if uid != puid || gid != pgid {
+		f := lis.Addr().String()
+		log.WithFields(map[string]interface{}{
+			"uid":  usrName,
+			"gid":  grpName,
+			"path": f,
+		}).Info("chown csi endpoint")
+		if err := os.Chown(f, uid, gid); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (sp *StoragePlugin) lookupEnv(key string) (string, bool) {
 	val, ok := sp.envVars[key]
 	return val, ok
+}
+
+func (sp *StoragePlugin) setenv(key, val string) error {
+	sp.envVars[key] = val
+	return nil
 }
 
 func (sp *StoragePlugin) getEnvBool(ctx context.Context, key string) bool {

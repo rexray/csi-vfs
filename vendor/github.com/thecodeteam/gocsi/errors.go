@@ -7,6 +7,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ErrVolumeNotFound returns an error indicating a volume with the
+// specified ID cannot be found.
+func ErrVolumeNotFound(id string) error {
+	return status.Errorf(codes.NotFound, "volume not found: %s", id)
+}
+
 // ErrMissingCSIEndpoint occurs when the value for the environment
 // variable CSI_ENDPOINT is not set.
 var ErrMissingCSIEndpoint = errors.New("missing CSI_ENDPOINT")

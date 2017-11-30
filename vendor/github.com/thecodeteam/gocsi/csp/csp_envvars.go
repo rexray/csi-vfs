@@ -2,6 +2,7 @@ package csp
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/thecodeteam/gocsi"
@@ -11,6 +12,26 @@ const (
 	// EnvVarEndpoint is the name of the environment variable used to
 	// specify the CSI endpoint.
 	EnvVarEndpoint = "CSI_ENDPOINT"
+
+	// EnvVarEndpointPerms is the name of the environment variable used
+	// to specify the file permissions for the CSI endpoint when it is
+	// a UNIX socket file. This setting has no effect if CSI_ENDPOINT
+	// specifies a TCP socket. The default value is 0755.
+	EnvVarEndpointPerms = "X_CSI_ENDPOINT_PERMS"
+
+	// EnvVarEndpointUser is the name of the environment variable used
+	// to specify the UID or name of the user that owns the endpoint's
+	// UNIX socket file. This setting has no effect if CSI_ENDPOINT
+	// specifies a TCP socket. The default value is the user that starts
+	// the process.
+	EnvVarEndpointUser = "X_CSI_ENDPOINT_USER"
+
+	// EnvVarEndpointGroup is the name of the environment variable used
+	// to specify the GID or name of the group that owns the endpoint's
+	// UNIX socket file. This setting has no effect if CSI_ENDPOINT
+	// specifies a TCP socket. The default value is the group that starts
+	// the process.
+	EnvVarEndpointGroup = "X_CSI_ENDPOINT_GROUP"
 
 	// EnvVarDebug is the name of the environment variable used to
 	// determine whether or not debug mode is enabled.
@@ -26,26 +47,37 @@ const (
 	EnvVarLogLevel = "X_CSI_LOG_LEVEL"
 
 	// EnvVarSupportedVersions is the name of the environment variable used
-	// to specify a space-delimited list of versions supported by the SP. If
+	// to specify a list of comma-separated versions supported by the SP. If
 	// no value is specified then the SP does not perform a version check on
 	// the RPC.
 	EnvVarSupportedVersions = "X_CSI_SUPPORTED_VERSIONS"
 
-	// EnvVarPluginInfo is the name of the environment variable used to specify
-	// the plug-in info in the format:
+	// EnvVarPluginInfo is the name of the environment variable used to
+	// specify the plug-in info in the format:
 	//
-	//         NAME,VENDOR_VERSION,MANIFEST
+	//         NAME, VENDOR_VERSION[, MANIFEST...]
 	//
-	// The MANIFEST value may be a series of key/value pairs where either
-	// the key or value may be quoted to preserve leading or trailing
-	// whitespace. For example:
+	// The MANIFEST value may be a series of additional comma-separated
+	// key/value pairs.
 	//
-	//         key1=val1 key2="val2 " "key 3"=' val3'
+	// Please see the encoding/csv package (https://goo.gl/1j1xb9) for
+	// information on how to quote keys and/or values to include leading
+	// and trailing whitespace.
 	//
 	// Setting this environment variable will cause the program to
 	// bypass the SP's GetPluginInfo RPC and returns the specified
 	// information instead.
 	EnvVarPluginInfo = "X_CSI_PLUGIN_INFO"
+
+	// EnvVarNodeSvcOnly is the name of the environment variable
+	// used to specify that only the CSI Node Service should be started,
+	// meaning that the Controller service should not
+	EnvVarNodeSvcOnly = "X_CSI_NODESVC_ONLY"
+
+	// EnvVarCtrlSvcOnly is the name of the environment variable
+	// used to specify that only the CSI Controller Service should be
+	// started, meaning that the Node service should not
+	EnvVarCtrlSvcOnly = "X_CSI_CTRLSVC_ONLY"
 
 	// EnvVarReqLogging is the name of the environment variable
 	// used to determine whether or not to enable request logging.
@@ -145,9 +177,17 @@ const (
 	// used to determine whether or not the idempotency interceptor
 	// checks to see if a volume exists before allowing an operation.
 	EnvVarIdempRequireVolume = "X_CSI_IDEMP_REQUIRE_VOL"
+
+	// EnvVarPrivateMountDir is the name of the environment variable
+	// that specifies the path of the private mount directory used by
+	// SPs to mount a device during a NodePublishVolume RPC before
+	// bind mounting the file/directory from the private mount area
+	// to the target path.
+	EnvVarPrivateMountDir = "X_CSI_PRIVATE_MOUNT_DIR"
 )
 
 func (sp *StoragePlugin) initEnvVars(ctx context.Context) {
+
 	// Copy the environment variables from the public EnvVar
 	// string slice to the private envVars map for quick lookup.
 	sp.envVars = map[string]string{}
@@ -176,6 +216,14 @@ func (sp *StoragePlugin) initEnvVars(ctx context.Context) {
 			val = pair[1]
 		}
 		sp.envVars[key] = val
+	}
+
+	// Check for the debug value.
+	if v, ok := gocsi.LookupEnv(ctx, EnvVarDebug); ok {
+		if ok, _ := strconv.ParseBool(v); ok {
+			gocsi.Setenv(ctx, EnvVarReqLogging, "true")
+			gocsi.Setenv(ctx, EnvVarRepLogging, "true")
+		}
 	}
 
 	return
