@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/thecodeteam/gocsi/csp"
+	"github.com/thecodeteam/gocsi"
 
 	"github.com/thecodeteam/csi-vfs/provider"
 	"github.com/thecodeteam/csi-vfs/service"
@@ -11,7 +11,7 @@ import (
 
 // main is ignored when this package is built as a go plug-in
 func main() {
-	csp.Run(
+	gocsi.Run(
 		context.Background(),
 		service.Name,
 		"A Virtual Filesystem (VFS) Container Storage Interface (CSI) "+

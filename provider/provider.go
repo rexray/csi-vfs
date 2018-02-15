@@ -1,53 +1,45 @@
 package provider
 
 import (
+	"fmt"
+
 	"github.com/thecodeteam/csi-vfs/service"
-	"github.com/thecodeteam/gocsi/csp"
+	"github.com/thecodeteam/gocsi"
 )
 
 // New returns a new CSI-VFS Storage Plug-in Provider.
-func New() csp.StoragePluginProvider {
+func New() gocsi.StoragePluginProvider {
 	svc := service.New()
-	return &csp.StoragePlugin{
-		Controller:          svc,
-		Identity:            svc,
-		Node:                svc,
-		IdempotencyProvider: svc,
-		BeforeServe:         svc.BeforeServe,
+	return &gocsi.StoragePlugin{
+		Controller:  svc,
+		Identity:    svc,
+		Node:        svc,
+		BeforeServe: svc.BeforeServe,
 		EnvVars: []string{
-			// Enable idempotency. Please note that setting
-			// X_CSI_IDEMP=true does not by itself enable the idempotency
-			// interceptor. An IdempotencyProvider must be provided as
-			// well.
-			csp.EnvVarIdemp + "=true",
-
-			// Tell the idempotency interceptor to validate whether or
-			// not a volume exists before proceeding with the operation
-			csp.EnvVarIdempRequireVolume + "=true",
+			// Enable serial volume access.
+			gocsi.EnvVarSerialVolAccess + "=true",
 
 			// Treat the following fields as required:
 			//    * ControllerPublishVolumeRequest.NodeId
 			//    * GetNodeIDResponse.NodeId
-			csp.EnvVarRequireNodeID + "=true",
+			gocsi.EnvVarRequireNodeID + "=true",
 
 			// Treat the following fields as required:
 			//    * ControllerPublishVolumeResponse.PublishVolumeInfo
 			//    * NodePublishVolumeRequest.PublishVolumeInfo
-			csp.EnvVarRequirePubVolInfo + "=true",
-
-			// Treat CreateVolume responses as successful
-			// when they have an associated error code of AlreadyExists.
-			csp.EnvVarCreateVolAlreadyExistsSuccess + "=true",
-
-			// Treat DeleteVolume responses as successful
-			// when they have an associated error code of NotFound.
-			csp.EnvVarDeleteVolNotFoundSuccess + "=true",
+			gocsi.EnvVarRequirePubVolInfo + "=true",
 
 			// Provide the list of versions supported by this SP. The
 			// specified versions will be:
 			//     * Returned by GetSupportedVersions
 			//     * Used to validate the Version field of incoming RPCs
-			csp.EnvVarSupportedVersions + "=" + service.SupportedVersions,
+			gocsi.EnvVarSupportedVersions + "=" + service.SupportedVersions,
+
+			// Provide the SP's identity information. This will enable the
+			// middleware that overrides the GetPluginInfo RPC and returns
+			// the following information instead.
+			fmt.Sprintf("%s=%s,%s",
+				gocsi.EnvVarPluginInfo, service.Name, service.VendorVersion),
 		},
 	}
 }

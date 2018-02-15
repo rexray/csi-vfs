@@ -41,24 +41,9 @@ $ go install github.com/thecodeteam/gocsi/csc
 ```
 
 ## Configuration
-The CSI-VFS SP is built using the GoCSI CSP package. Please
-see its
-[configuration section](https://github.com/thecodeteam/gocsi/tree/master/csp#configuration)
-for a complete list of the environment variables that may be used to
-configure this SP.
+This section details the environment variables used to configure CSI-VFS.
 
-The following table is a list of this SP's default configuration values:
-
-| Name | Value |
-|------|---------|
-| `X_CSI_IDEMP` | `true` |
-| `X_CSI_IDEMP_REQUIRE_VOL` | `true` |
-| `X_CSI_REQUIRE_NODE_ID` | `true` |
-| `X_CSI_REQUIRE_PUB_VOL_INFO` | `true` |
-| `X_CSI_CREATE_VOL_ALREADY_EXISTS` | `true` |
-| `X_CSI_DELETE_VOL_NOT_FOUND` | `true` |
-| `X_CSI_SUPPORTED_VERSIONS` | `0.0.0 0.1.0` |
-
+### VFS
 The VFS plug-in attempts to approximate the normal workflow of a storage platform
 by having separate directories for volumes, devices, and private mounts. These
 directories can be configured with the following environment variables:
@@ -67,6 +52,21 @@ directories can be configured with the following environment variables:
 |------|---------|-------------|
 | `X_CSI_VFS_DATA` | `$HOME/.csi-vfs` | The root data directory |
 | `X_CSI_VFS_VOL` | `$X_CSI_VFS_DATA/vol` | Where volumes (directories) are created |
-| `X_CSI_VFS_VOL_GLOB` | `*` | The pattern used to match volumes in `$X_CSI_VFS_VOL` |
 | `X_CSI_VFS_DEV` | `$X_CSI_VFS_DATA/dev` | A directory from `$X_CSI_VFS_VOL` is bind mounted to an eponymous directory in this location when `ControllerPublishVolume` is called |
 | `X_CSI_VFS_MNT` | `$X_CSI_VFS_DATA/mnt` | A directory from `$X_CSI_VFS_DEV` is bind mounted to an eponymous directory in this location when `NodePublishVolume` is called |
+
+### GoCSI
+The CSI-VFS SP is built using GoCSI. Please see its
+[configuration section](https://github.com/thecodeteam/gocsi#configuration)
+for a complete list of the environment variables that may be used to
+configure this SP.
+
+The following table is a list of this SP's default values for the following
+GoCSI environment variables:
+
+| Name | Value |
+|------|---------|
+| `X_CSI_SERIAL_VOL_ACCESS` | `true` |
+| `X_CSI_REQUIRE_NODE_ID` | `true` |
+| `X_CSI_REQUIRE_PUB_VOL_INFO` | `true` |
+| `X_CSI_SUPPORTED_VERSIONS` | `0.0.0 0.1.0` |
