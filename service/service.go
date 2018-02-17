@@ -25,7 +25,7 @@ const (
 	Name = "com.thecodeteam.vfs"
 
 	// VendorVersion is the version of this CSP SP.
-	VendorVersion = "0.1.4"
+	VendorVersion = "0.2.1"
 
 	// SupportedVersions is a list of the CSI versions this SP supports.
 	SupportedVersions = "0.0.0, 0.1.0"
