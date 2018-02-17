@@ -2,16 +2,54 @@
 
 
 [[projects]]
-  branch = "master"
   name = "github.com/container-storage-interface/spec"
   packages = ["lib/go/csi"]
-  revision = "4ac2d13f89360f2da40d188473d77f2ec56b9d0d"
+  revision = "9e88e4bfabeca1b8e4810555815f112159292ada"
+  version = "v0.1.0"
+
+[[projects]]
+  name = "github.com/coreos/etcd"
+  packages = [
+    "auth/authpb",
+    "clientv3",
+    "clientv3/concurrency",
+    "etcdserver/api/v3rpc/rpctypes",
+    "etcdserver/etcdserverpb",
+    "mvcc/mvccpb",
+    "pkg/types"
+  ]
+  revision = "28f3f26c0e303392556035b694f75768d449d33d"
+  version = "v3.3.1"
+
+[[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = [
+    "gogoproto",
+    "proto",
+    "protoc-gen-gogo/descriptor"
+  ]
+  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/golang/protobuf"
-  packages = ["proto","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
+  packages = [
+    "jsonpb",
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/struct",
+    "ptypes/timestamp"
+  ]
   revision = "17ce1425424ab154092bbb43af630bd647f3bb0d"
+
+[[projects]]
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   branch = "master"
@@ -20,15 +58,45 @@
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[projects]]
-  branch = "master"
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
+  version = "v0.0.1"
+
+[[projects]]
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/thecodeteam/gocsi"
-  packages = [".","csp"]
-  revision = "3c9764863d9a27c639b98b114e334b1e0f8a93c9"
+  packages = [
+    ".",
+    "context",
+    "csc",
+    "csc/cmd",
+    "middleware/logging",
+    "middleware/requestid",
+    "middleware/serialvolume",
+    "middleware/serialvolume/etcd",
+    "middleware/serialvolume/types",
+    "middleware/specvalidator",
+    "utils"
+  ]
+  revision = "9260f643b76fc3eb889219349fbe16eaf6a3a538"
+  version = "v0.3.2"
 
 [[projects]]
   name = "github.com/thecodeteam/gofsutil"
   packages = ["."]
   revision = "c8c8c91566a91a907494e33a631b1b95c4aa0f19"
+  version = "v0.1.0"
+
+[[projects]]
+  name = "github.com/thecodeteam/gosync"
+  packages = ["."]
+  revision = "94b0033d0b5fc254594c3174329c19356c2c4f63"
   version = "v0.1.0"
 
 [[projects]]
@@ -40,19 +108,40 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
+  packages = [
+    "context",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "lex/httplex",
+    "trace"
+  ]
   revision = "66aacef3dd8a676686c7ae3716979581e8b03c47"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
+  packages = [
+    "unix",
+    "windows"
+  ]
   revision = "9aade4d3a3b7e6d876cd3823ad20ec45fc035402"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/text"
-  packages = ["internal/gen","internal/triegen","internal/ucd","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
+  packages = [
+    "internal/gen",
+    "internal/triegen",
+    "internal/ucd",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
   revision = "bd91bbf73e9a4a801adbfb97133c992678533126"
 
 [[projects]]
@@ -63,13 +152,30 @@
 
 [[projects]]
   name = "google.golang.org/grpc"
-  packages = [".","codes","connectivity","credentials","grpclb/grpc_lb_v1/messages","grpclog","internal","keepalive","metadata","naming","peer","stats","status","tap","transport"]
+  packages = [
+    ".",
+    "codes",
+    "connectivity",
+    "credentials",
+    "grpclb/grpc_lb_v1/messages",
+    "grpclog",
+    "health/grpc_health_v1",
+    "internal",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
   revision = "f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3"
   version = "v1.6.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5676c879707690c59a94ba01e41675fd6d585ecbbb3b2acc6c7c26ddfb94cd65"
+  inputs-digest = "c3a34d24a553218bac78b74e84ea2e047dfaa8c2a307ba7cc6ec60f31b43933d"
   solver-name = "gps-cdcl"
   solver-version = 1

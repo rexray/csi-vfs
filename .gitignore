@@ -1,3 +1,7 @@
+/etcd.log
+/default.etcd
+/etcd
+/csc
 /csi-vfs
 .DS_Store
 

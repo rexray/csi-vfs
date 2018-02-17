@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	csiutils "github.com/thecodeteam/gocsi/utils"
 	"github.com/thecodeteam/gofsutil"
 )
 
@@ -20,89 +21,102 @@ func (s *service) NodePublishVolume(
 	req *csi.NodePublishVolumeRequest) (
 	*csi.NodePublishVolumeResponse, error) {
 
+	// Get the existing volume info.
+	vol, err := s.getVolumeInfo(req.VolumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify that the requested capability is compatible with the volume's
+	// capabilities.
+	if ok, err := csiutils.IsVolumeCapabilityCompatible(
+		req.VolumeCapability, vol.VolumeCapabilities); !ok {
+		if err != nil {
+			return nil, err
+		}
+		return nil, status.Error(
+			codes.InvalidArgument, "invalid volume capability")
+	}
+
 	// Get the path of the volume.
 	devPath := path.Join(s.dev, req.VolumeId)
 	mntPath := path.Join(s.mnt, req.VolumeId)
-	tgtPath := req.TargetPath
-	resolveSymlink(&tgtPath)
 
-	if !fileExists(devPath) {
-		log.WithField("path", devPath).Error(
-			"must call ControllerPublishVolume first")
+	// Eval any symlinks in the target path and ensure the CO has created it.
+	tgtPath := req.TargetPath
+	if err := gofsutil.EvalSymlinks(ctx, &tgtPath); err != nil {
+		return nil, status.Errorf(
+			codes.Internal, "failed to eval symlink: %s: %v", tgtPath, err)
+	}
+	if ok, err := fileExists(tgtPath); !ok {
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "%s: %v", tgtPath, err)
+		}
+		return nil, status.Error(codes.NotFound, tgtPath)
+	}
+
+	// Get the path of the volume's device and see if it exists.
+	if ok, err := fileExists(devPath); !ok {
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "%s: %v", devPath, err)
+		}
 		return nil, status.Error(
 			codes.Aborted, "must call ControllerPublishVolume first")
 	}
 
 	// If the private mount directory for the device does not exist then
 	// create it.
-	if !fileExists(mntPath) {
-		if err := os.MkdirAll(mntPath, 0755); err != nil {
-			log.WithField("path", mntPath).WithError(err).Error(
-				"create private mount dir failed")
-			return nil, err
+	if ok, err := fileExists(mntPath); !ok {
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "%s: %v", mntPath, err)
 		}
-		log.WithField("path", mntPath).Info("created private mount dir")
+		if err := os.MkdirAll(mntPath, 0755); err != nil {
+			return nil, status.Errorf(codes.Internal,
+				"create private mount dir failed: %s: %v", mntPath, err)
+		}
 	}
 
 	// Get the mount info to determine if the device is already mounted
 	// into the private mount directory.
 	minfo, err := gofsutil.GetMounts(ctx)
 	if err != nil {
-		log.WithError(err).Error("failed to get mount info")
-		return nil, err
+		return nil, status.Errorf(
+			codes.Internal, "failed to get mount info: %v", err)
 	}
 	isPrivMounted := false
-	isTgtMounted := false
 	for _, i := range minfo {
 		if i.Source == devPath && i.Path == mntPath {
 			isPrivMounted = true
 		}
 		if i.Source == mntPath && i.Path == tgtPath {
-			isTgtMounted = true
+			return &csi.NodePublishVolumeResponse{}, nil
 		}
-	}
-
-	if isTgtMounted {
-		log.WithField("path", tgtPath).Info("already mounted")
-		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// If the devie is not already mounted into the private mount
 	// area then go ahead and mount it.
 	if !isPrivMounted {
 		if err := gofsutil.BindMount(ctx, devPath, mntPath); err != nil {
-			log.WithField("path", mntPath).WithError(err).Error(
-				"create private mount failed")
-			return nil, err
-		}
-		log.WithField("path", mntPath).Info("created private mount")
-	}
-
-	// Create the bind mount options from the requested access mode.
-	var opts []string
-	if vc := req.VolumeCapability; vc != nil {
-		if am := req.VolumeCapability.AccessMode; am != nil {
-			switch am.Mode {
-			case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER:
-				opts = []string{"rw"}
-			case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
-				opts = []string{"ro"}
-			default:
-				return nil, status.Errorf(codes.InvalidArgument,
-					"unsupported access mode: %v", am.Mode)
-			}
+			return nil, status.Errorf(codes.Internal,
+				"bind mount failed: devPath=%s, mntPath=%s: %v",
+				devPath, mntPath, err)
 		}
 	}
 
-	// Ensure the directory for the request's target path exists.
-	if err := os.MkdirAll(tgtPath, 0755); err != nil {
-		return nil, err
+	// Create the bind mount options from the requet's ReadOnly field
+	// and access mode.
+	opts := []string{"rw"}
+	if am := req.VolumeCapability.AccessMode; req.Readonly || (am != nil &&
+		am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY) {
+		opts[0] = "ro"
 	}
 
 	// Bind mount the private mount to the requested target path with
 	// the requested access mode.
 	if err := gofsutil.BindMount(ctx, mntPath, tgtPath, opts...); err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal,
+			"bind mount failed: mntPath=%s, tgtPath=%s, opts=%v: %v",
+			mntPath, tgtPath, opts, err)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -113,16 +127,28 @@ func (s *service) NodeUnpublishVolume(
 	req *csi.NodeUnpublishVolumeRequest) (
 	*csi.NodeUnpublishVolumeResponse, error) {
 
+	// Get the path of the volume and ensure it exists.
+	volPath := path.Join(s.vol, req.VolumeId)
+	if ok, err := fileExists(volPath); !ok {
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "%s: %v", volPath, err)
+		}
+		return nil, status.Error(codes.NotFound, volPath)
+	}
+
 	// Get the path of the volume.
 	mntPath := path.Join(s.mnt, req.VolumeId)
 	tgtPath := req.TargetPath
-	resolveSymlink(&tgtPath)
+	if err := gofsutil.EvalSymlinks(ctx, &tgtPath); err != nil {
+		return nil, status.Errorf(
+			codes.Internal, "failed to eval symlink: %s: %v", tgtPath, err)
+	}
 
 	// Get the node's mount information.
 	minfo, err := gofsutil.GetMounts(ctx)
 	if err != nil {
-		log.WithError(err).Error("failed to get mount info")
-		return nil, err
+		return nil, status.Errorf(
+			codes.Internal, "failed to get mount info: %v", err)
 	}
 
 	// The loop below does two things:
@@ -144,11 +170,9 @@ func (s *service) NodeUnpublishVolume(
 		// it is the subject of this request.
 		if i.Source == mntPath && i.Path == tgtPath {
 			if err := gofsutil.Unmount(ctx, tgtPath); err != nil {
-				log.WithField("path", tgtPath).WithError(err).Error(
-					"failed to unmount target path")
-				return nil, err
+				return nil, status.Errorf(
+					codes.Internal, "unmount failed: %s: %v", tgtPath, err)
 			}
-			log.WithField("path", tgtPath).Info("unmounted target path")
 			mountCount--
 		}
 	}
@@ -156,33 +180,21 @@ func (s *service) NodeUnpublishVolume(
 	log.WithFields(map[string]interface{}{
 		"name":  req.VolumeId,
 		"count": mountCount,
-	}).Info("volume mount info")
-
-	// If the target path exists then remove it.
-	if fileExists(tgtPath) {
-		if err := os.RemoveAll(tgtPath); err != nil {
-			log.WithField("path", tgtPath).WithError(err).Error(
-				"failed to remove target path")
-			return nil, err
-		}
-		log.WithField("path", tgtPath).Info("removed target path")
-	}
+	}).Debug("volume mount info")
 
 	// If the volume is no longer mounted anywhere else on this node then
 	// unmount the volume's private mount as well.
 	if mountCount == 0 {
 		if err := gofsutil.Unmount(ctx, mntPath); err != nil {
-			log.WithField("path", mntPath).WithError(err).Error(
-				"failed to unmount private mount")
-			return nil, err
+			return nil, status.Errorf(
+				codes.Internal,
+				"unmount private mnt failed: %s: %v", mntPath, err)
 		}
-		log.WithField("path", mntPath).Info("unmounted private mount")
 		if err := os.RemoveAll(mntPath); err != nil {
-			log.WithField("path", mntPath).WithError(err).Error(
-				"failed to remove private mount")
-			return nil, err
+			return nil, status.Errorf(
+				codes.Internal,
+				"remove private mnt failed: %s: %v", mntPath, err)
 		}
-		log.WithField("path", mntPath).Info("removed private mount")
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil

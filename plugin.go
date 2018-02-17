@@ -9,6 +9,10 @@ import (
 	"github.com/thecodeteam/csi-vfs/service"
 )
 
+////////////////////////////////////////////////////////////////////////////////
+//                              Go Plug-in                                    //
+////////////////////////////////////////////////////////////////////////////////
+
 // SupportedVersions is a space-delimited list of supported CSI versions.
 var SupportedVersions = service.SupportedVersions
 

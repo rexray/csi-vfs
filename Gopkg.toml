@@ -2,15 +2,15 @@
 # for detailed Gopkg.toml documentation.
 #
 # Refer to https://github.com/toml-lang/toml for detailed TOML docs.
+required = [
+  "github.com/thecodeteam/gocsi/csc",
+]
+
+[prune]
+  non-go = true
+  go-tests = true
+  unused-packages = true
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/thecodeteam/goioc"
-
-[[constraint]]
-  branch = "master"
+  version = "v0.3.2"
   name = "github.com/thecodeteam/gocsi"
-
-[[constraint]]
-  branch = "master"
-  name = "golang.org/x/net"
