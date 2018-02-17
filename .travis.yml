@@ -1,0 +1,27 @@
+# Setting "sudo" to false forces Travis-CI to use its
+# container-based build infrastructure, which has shorter
+# queue times.
+sudo: false
+
+# Use the newer Travis-CI build templates based on the
+# Debian Linux distribution "Trusty" release.
+dist: trusty
+
+# Select Go as the language used to run the buid.
+language: go
+go: 1.9.4
+go_import_path: github.com/thecodeteam/csi-vfs
+
+jobs:
+  include:
+
+      - stage:   build
+        install: true
+        script:  make
+
+      # The test stage is separate since it can enqueue longer due to
+      # the sudo requirement related to bind mounts.
+      - stage:   test
+        sudo:    true
+        install: make build csc etcd
+        script:  sudo make test

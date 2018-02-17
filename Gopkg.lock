@@ -46,16 +46,36 @@
   revision = "17ce1425424ab154092bbb43af630bd647f3bb0d"
 
 [[projects]]
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[projects]]
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
+  version = "v0.0.1"
+
+[[projects]]
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/thecodeteam/gocsi"
   packages = [
     ".",
     "context",
+    "csc",
+    "csc/cmd",
     "middleware/logging",
     "middleware/requestid",
     "middleware/serialvolume",
@@ -156,6 +176,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f1e9e8c495db63491dd9d0082326f960f6ca621276c32747507d6b7023fd916c"
+  inputs-digest = "c3a34d24a553218bac78b74e84ea2e047dfaa8c2a307ba7cc6ec60f31b43933d"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -2,6 +2,10 @@
 # for detailed Gopkg.toml documentation.
 #
 # Refer to https://github.com/toml-lang/toml for detailed TOML docs.
+required = [
+  "github.com/thecodeteam/gocsi/csc",
+]
+
 [prune]
   non-go = true
   go-tests = true
