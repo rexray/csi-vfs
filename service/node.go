@@ -78,18 +78,18 @@ func (s *service) NodePublishVolume(
 
 	// Get the mount info to determine if the device is already mounted
 	// into the private mount directory.
-	minfo, err := gofsutil.GetMounts(ctx)
+	minfo, err := getMounts(ctx)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal, "failed to get mount info: %v", err)
 	}
 	isPrivMounted := false
 	for _, i := range minfo {
-		if i.Source == devPath && i.Path == mntPath {
-			isPrivMounted = true
-		}
-		if i.Source == mntPath && i.Path == tgtPath {
+		if i.Source == vol.path && i.Path == tgtPath {
 			return &csi.NodePublishVolumeResponse{}, nil
+		}
+		if i.Source == vol.path && i.Path == mntPath {
+			isPrivMounted = true
 		}
 	}
 
@@ -137,6 +137,7 @@ func (s *service) NodeUnpublishVolume(
 	}
 
 	// Get the path of the volume.
+	devPath := path.Join(s.dev, req.VolumeId)
 	mntPath := path.Join(s.mnt, req.VolumeId)
 	tgtPath := req.TargetPath
 	if err := gofsutil.EvalSymlinks(ctx, &tgtPath); err != nil {
@@ -145,7 +146,7 @@ func (s *service) NodeUnpublishVolume(
 	}
 
 	// Get the node's mount information.
-	minfo, err := gofsutil.GetMounts(ctx)
+	minfo, err := getMounts(ctx)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal, "failed to get mount info: %v", err)
@@ -158,17 +159,17 @@ func (s *service) NodeUnpublishVolume(
 	mountCount := 0
 	for _, i := range minfo {
 
-		// If there is a device that matches the mntPath value then
-		// increment the number of times this volume is mounted on
-		// this node.
-		if i.Source == mntPath {
+		// If there is an entry that matches the volPath value that
+		// isn't the dev or mnt paths then increment the number of
+		// times this volume is mounted on this node.
+		if i.Source == volPath && (i.Path != devPath && i.Path != mntPath) {
 			mountCount++
 		}
 
-		// If there is a device that matches the mntPath value and
+		// If there is an entry that matches the volPath value and
 		// a path that matches the tgtPath value then unmount it as
 		// it is the subject of this request.
-		if i.Source == mntPath && i.Path == tgtPath {
+		if i.Source == volPath && i.Path == tgtPath {
 			if err := gofsutil.Unmount(ctx, tgtPath); err != nil {
 				return nil, status.Errorf(
 					codes.Internal, "unmount failed: %s: %v", tgtPath, err)

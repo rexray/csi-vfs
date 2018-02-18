@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
 	log "github.com/sirupsen/logrus"
@@ -281,7 +283,7 @@ func getVolumeMountPaths(
 
 	mntPath := path.Join(mntDir, volumeID)
 
-	minfo, err := gofsutil.GetMounts(ctx)
+	minfo, err := getMounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -295,4 +297,49 @@ func getVolumeMountPaths(
 	}
 
 	return mountPaths, nil
+}
+
+func getMounts(ctx context.Context) ([]gofsutil.Info, error) {
+	return getMountsObj.GetMounts(ctx)
+}
+
+var getMountsObj = &gofsutil.FS{
+	ScanEntry: func(
+		ctx context.Context,
+		entry gofsutil.Entry,
+		cache map[string]gofsutil.Entry) (
+		info gofsutil.Info, valid bool, failed error) {
+
+		// Validate the mount table entry.
+		validFSType, _ := regexp.MatchString(
+			`(?i)^devtmpfs|(?:fuse\..*)|(?:nfs\d?)|overlay$`, entry.FSType)
+		sourceHasSlashPrefix := strings.HasPrefix(entry.MountSource, "/")
+		if valid = validFSType || sourceHasSlashPrefix; !valid {
+			return
+		}
+
+		// Copy the Entry object's fields to the Info object.
+		info.Device = entry.MountSource
+		info.Opts = make([]string, len(entry.MountOpts))
+		copy(info.Opts, entry.MountOpts)
+		info.Path = entry.MountPoint
+		info.Type = entry.FSType
+		info.Source = entry.MountSource
+
+		// If this is the first time a source is encountered in the
+		// output then cache its mountPoint field as the filesystem path
+		// to which the source is mounted as a non-bind mount.
+		//
+		// Subsequent encounters with the source will resolve it
+		// to the cached root value in order to set the mount info's
+		// Source field to the the cached mountPont field value + the
+		// value of the current line's root field.
+		if cachedEntry, ok := cache[entry.MountSource]; ok {
+			info.Source = path.Join(cachedEntry.MountPoint, entry.Root)
+		} else {
+			cache[entry.MountSource] = entry
+		}
+
+		return
+	},
 }
