@@ -23,5 +23,4 @@ jobs:
       # the sudo requirement related to bind mounts.
       - stage:   test
         sudo:    true
-        install: make build csc etcd
-        script:  sudo make test
+        script:  make docker-test

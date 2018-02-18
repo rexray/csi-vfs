@@ -182,7 +182,7 @@ func (s *service) ControllerPublishVolume(
 
 	// Get the mount info to determine if the volume dir is already
 	// bind mounted to the device dir.
-	minfo, err := gofsutil.GetMounts(ctx)
+	minfo, err := getMounts(ctx)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal, "failed to get mount info: %v", err)
@@ -228,7 +228,7 @@ func (s *service) ControllerUnpublishVolume(
 	devPath := path.Join(s.dev, req.VolumeId)
 
 	// Get the node's mount information.
-	minfo, err := gofsutil.GetMounts(ctx)
+	minfo, err := getMounts(ctx)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal, "failed to get mount info: %v", err)

@@ -51,72 +51,140 @@ CSC := ./csc
 $(CSC):
 	go build -o $@ ./vendor/github.com/thecodeteam/gocsi/csc
 
-test: build | $(ETCD) $(CSC)
-	@umount /tmp/vol-00 "$(HOME)/.csi-vfs/*/vol-00" 2> /dev/null || true
-	@rm -fr /tmp/vol-00
-	test ! -e "$(HOME)/.csi-vfs/*/vol-00" -a ! -e /tmp/vol-00
-	@echo
+VOL_ID := vol-00
+VOL_JSN := .info.json
+TGT_DIR := /tmp/$(VOL_ID)
+VFS_DIR := $(HOME)/.csi-vfs
+VOL_DIR := $(VFS_DIR)/vol/$(VOL_ID)
+DEV_DIR := $(VFS_DIR)/dev/$(VOL_ID)
+MNT_DIR := $(VFS_DIR)/mnt/$(VOL_ID)
+
+test-clean:
+	@echo "CLEANUP"
+	@umount $(TGT_DIR) $(VOL_DIR) $(DEV_DIR) $(MNT_DIR) 2> /dev/null || true
+	@test ! "$$(mount | grep $(VOL_ID))"
+	@echo "- verified volume not mounted"
+	@rm -fr "$(VFS_DIR)/*/$(VOL_ID)" "$(TGT_DIR)"
+	@test ! -e "$(VFS_DIR)/*/$(VOL_ID)" -a ! -e $(TGT_DIR)
+	@echo "- verified volume paths do not exist"
 	@pkill $(notdir $(ETCD)) || true
+	@echo "- killed etcd"
+	@rm -fr etcd.log default.etcd
+	@echo "- removed etcd log file & data directory"
 	@pkill -2 $(notdir $(CSI_VFS)) || true
-	@rm -fr $(X_CSI_LOG) $(CSI_ENDPOINT) etcd.log default.etcd
-	$(ETCD) > etcd.log 2>&1 &
+	@echo "- killed csi-vfs"
+	@rm -fr $(X_CSI_LOG) $(CSI_ENDPOINT)
+	@echo "- removed csi-vfs log file & unix socket"
+	@echo "- test environment ready"
+
+test-up:
+	@$(MAKE) --no-print-directory test-clean
 	@echo
-	$(CSI_VFS) > $(X_CSI_LOG) 2>&1 &
-	@echo
+	@echo "INITIALIZATION"
+	@$(ETCD) > etcd.log 2>&1 &
+	@echo "- started etcd"
+	@$(CSI_VFS) > $(X_CSI_LOG) 2>&1 &
+	@echo "- started csi-vfs"
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
 	  if grep -q "msg=serving" $(X_CSI_LOG); then break; \
 	  else sleep 0.1; fi \
 	done
+	@echo "- csi-vfs ready"
+	@echo
+	@echo "GET SUPPORTED VERSIONS"
 	$(CSC) -v $(X_CSI_VERSION) i version
 	@echo
+	@echo "GET PLUG-IN INFO"
 	$(CSC) -v $(X_CSI_VERSION) i info
 	@echo
-	((cat /proc/self/mountinfo 2> /dev/null || mount) | grep vol-00) || true
-	@echo
+	@echo "CREATE NEW VOLUME"
 	$(CSC) -v $(X_CSI_VERSION) c new \
-           --cap SINGLE_NODE_WRITER,mount,vfs \
-           vol-00
+      --cap SINGLE_NODE_WRITER,mount,vfs \
+      $(VOL_ID)
 	@echo
-	test -e "$(HOME)/.csi-vfs/vol/vol-00"
+	@echo "VERIFY VOLUME DIR"
+	test -e "$(VOL_DIR)" -a -e "$(VOL_DIR)/$(VOL_JSN)"
 	@echo
+	@echo "CONTROLLER PUBLISH VOLUME"
 	$(CSC) -v $(X_CSI_VERSION) c publish \
-           --cap SINGLE_NODE_WRITER,mount,vfs \
-           --node-id localhost \
-           vol-00
+      --cap SINGLE_NODE_WRITER,mount,vfs \
+      --node-id localhost \
+      $(VOL_ID)
 	@echo
-	test -e "$(HOME)/.csi-vfs/dev/vol-00"
+	@echo "VERIFY DEVICE DIR"
+	test -e "$(DEV_DIR)" -a -e "$(DEV_DIR)/$(VOL_JSN)"
 	@echo
-	mkdir -p /tmp/vol-00
+	@echo "VERIFY VOLUME->DEVICE BIND MOUNT"
+	test "$$(mount | grep $(DEV_DIR))"
 	@echo
+	@echo "CREATE TARGET PATH"
+	mkdir -p $(TGT_DIR)
+	@echo
+	@echo "NODE PUBLISH VOLUME"
 	$(CSC) -v $(X_CSI_VERSION) n publish \
-           --cap SINGLE_NODE_WRITER,mount,vfs \
-           --target-path /tmp/vol-00 \
-           --pub-info devPath=$(HOME)/.csi-vfs/dev/vol-00 \
-           vol-00
+      --cap SINGLE_NODE_WRITER,mount,vfs \
+      --target-path $(TGT_DIR) \
+      --pub-info devPath=$(VFS_DIR)/dev/$(VOL_ID) \
+      $(VOL_ID)
 	@echo
-	test -e "$(HOME)/.csi-vfs/mnt/vol-00"
+	@echo "VERIFY MOUNT DIR"
+	test -e "$(MNT_DIR)" -a -e "$(MNT_DIR)/$(VOL_JSN)"
 	@echo
-	(cat /proc/self/mountinfo 2> /dev/null || mount) | grep vol-00
+	@echo "VERIFY DEVICE->MOUNT BIND MOUNT"
+	test "$$(mount | grep $(MNT_DIR))"
 	@echo
-	$(CSC) -v $(X_CSI_VERSION) n unpublish --target-path /tmp/vol-00 vol-00
+	@echo "VERIFY MOUNT->TARGET BIND MOUNT"
+	test "$$(mount | grep $(TGT_DIR))"
 	@echo
-	test ! -e "$(HOME)/.csi-vfs/mnt/vol-00"
+	@echo "NODE PUBLISH VOLUME (IDEMPONTENT)"
+	$(CSC) -v $(X_CSI_VERSION) n publish \
+      --cap SINGLE_NODE_WRITER,mount,vfs \
+      --target-path $(TGT_DIR) \
+      --pub-info devPath=$(VFS_DIR)/dev/$(VOL_ID) \
+      $(VOL_ID)
 	@echo
-	$(CSC) -v $(X_CSI_VERSION) c unpublish --node-id localhost vol-00
+	@echo "VERIFY SINGLE MOUNT->TARGET BIND MOUNT"
+	test "1" -eq "$$(mount | grep $(TGT_DIR) | wc -l | awk '{print $$1}')"
+
+test-down:
+	@echo "NODE UNPUBLISH VOLUME"
+	$(CSC) -v $(X_CSI_VERSION) n unpublish --target-path $(TGT_DIR) $(VOL_ID)
 	@echo
-	test ! -e "$(HOME)/.csi-vfs/dev/vol-00"
+	@echo "VERIFY ! MOUNT->TARGET BIND MOUNT"
+	test ! "$$(mount | grep $(TGT_DIR))"
 	@echo
-	$(CSC) -v $(X_CSI_VERSION) c delete vol-00
+	@echo "VERIFY ! DEVICE->MOUNT BIND MOUNT"
+	test ! "$$(mount | grep $(MNT_DIR))"
 	@echo
-	test ! -e "$(HOME)/.csi-vfs/vol/vol-00"
+	@echo "VERIFY ! MOUNT DIR"
+	test ! -e "$(MNT_DIR)"
 	@echo
-	pkill -2 $(notdir $(CSI_VFS))
+	@echo "CONTROLLER UNPUBLISH VOLUME"
+	$(CSC) -v $(X_CSI_VERSION) c unpublish --node-id localhost $(VOL_ID)
 	@echo
-	pkill $(notdir $(ETCD))
+	@echo "VERIFY ! VOLUME->DEVICE BIND MOUNT"
+	test ! "$$(mount | grep $(DEV_DIR))"
 	@echo
-	((cat /proc/self/mountinfo 2> /dev/null || mount) | grep vol-00) || true
+	@echo "VERIFY ! DEVICE DIR"
+	test ! -e "$(DEV_DIR)"
 	@echo
-	cat $(X_CSI_LOG)
+	@echo "CONTROLLER DELETE VOLUME"
+	$(CSC) -v $(X_CSI_VERSION) c delete $(VOL_ID)
+	@echo
+	@echo "VERIFY ! VOLUME DIR"
+	test ! -e "$(VOL_DIR)"
+	@echo
+	@$(MAKE) --no-print-directory test-clean 1> /dev/null
+
+test: build | $(ETCD) $(CSC)
+	@$(MAKE) --no-print-directory test-up
+	@echo
+	@$(MAKE) --no-print-directory test-down
+
+docker-test:
+	docker run --privileged --rm -it \
+           -v $(shell pwd):/go/src/github.com/thecodeteam/csi-vfs golang:1.9.4 \
+           make -C /go/src/github.com/thecodeteam/csi-vfs test
 
 
 ################################################################################
@@ -124,4 +192,7 @@ test: build | $(ETCD) $(CSC)
 ################################################################################
 build: $(CSI_VFS)
 
-.PHONY: build test
+clean:
+	rm -fr $(CSI_VFS) $(ETCD) $(CSC)
+
+.PHONY: build clean test test-clean docker-test
