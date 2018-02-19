@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/akutz/gofsutil"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csiutils "github.com/thecodeteam/gocsi/utils"
-	"github.com/thecodeteam/gofsutil"
+	csiutils "github.com/rexray/gocsi/utils"
 )
 
 func (s *service) NodePublishVolume(

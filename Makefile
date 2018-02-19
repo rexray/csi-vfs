@@ -49,7 +49,7 @@ $(ETCD): | $(CSI_VFS)
 
 CSC := ./csc
 $(CSC):
-	go build -o $@ ./vendor/github.com/thecodeteam/gocsi/csc
+	go build -o $@ ./vendor/github.com/rexray/gocsi/csc
 
 VOL_ID := vol-00
 VOL_JSN := .info.json
@@ -183,8 +183,8 @@ test: build | $(ETCD) $(CSC)
 
 docker-test:
 	docker run --privileged --rm -it \
-           -v $(shell pwd):/go/src/github.com/thecodeteam/csi-vfs golang:1.9.4 \
-           make -C /go/src/github.com/thecodeteam/csi-vfs test
+           -v $(shell pwd):/go/src/github.com/rexray/csi-vfs golang:1.9.4 \
+           make -C /go/src/github.com/rexray/csi-vfs test
 
 
 ################################################################################

@@ -3,8 +3,8 @@ package provider
 import (
 	"fmt"
 
-	"github.com/thecodeteam/csi-vfs/service"
-	"github.com/thecodeteam/gocsi"
+	"github.com/rexray/csi-vfs/service"
+	"github.com/rexray/gocsi"
 )
 
 // New returns a new CSI-VFS Storage Plug-in Provider.

@@ -10,7 +10,7 @@ dist: trusty
 # Select Go as the language used to run the buid.
 language: go
 go: 1.9.4
-go_import_path: github.com/thecodeteam/csi-vfs
+go_import_path: github.com/rexray/csi-vfs
 
 jobs:
   include:

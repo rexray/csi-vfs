@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/thecodeteam/gocsi"
+	"github.com/rexray/gocsi"
 
-	"github.com/thecodeteam/csi-vfs/provider"
-	"github.com/thecodeteam/csi-vfs/service"
+	"github.com/rexray/csi-vfs/provider"
+	"github.com/rexray/csi-vfs/service"
 )
 
 // main is ignored when this package is built as a go plug-in
