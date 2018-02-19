@@ -29,7 +29,7 @@ $(CSI_VFS): *.go provider/*.go service/*.go
 ################################################################################
 ##                                 TEST                                       ##
 ################################################################################
-X_CSI_VERSION ?= 0.1.0
+X_CSI_VERSION ?= 0.2.0
 X_CSI_LOG ?= csi-vfs.log
 CSI_ENDPOINT ?= csi-vfs.sock
 X_CSI_LOG_LEVEL ?= debug

@@ -14,10 +14,10 @@
   version = "v0.1.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/container-storage-interface/spec"
   packages = ["lib/go/csi"]
-  revision = "9e88e4bfabeca1b8e4810555815f112159292ada"
-  version = "v0.1.0"
+  revision = "8b8a2effee2415a3c476fc9884fae868d9367c70"
 
 [[projects]]
   name = "github.com/coreos/etcd"
@@ -64,6 +64,7 @@
   version = "v1.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/rexray/gocsi"
   packages = [
     ".",
@@ -78,8 +79,7 @@
     "middleware/specvalidator",
     "utils"
   ]
-  revision = "95eaf85960cf6b16658abd825fe60576bbc5e8e4"
-  version = "v0.3.3"
+  revision = "14ceb917cd47920f212efc7bbec37093221d0586"
 
 [[projects]]
   branch = "master"
@@ -176,6 +176,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "126f3616d04c2d4f2370ab36aa0c86dc0c52f3d5a7f58de6feab0bfa613f7521"
+  inputs-digest = "e10a003defd0353dc3b25d41333627dd2ce9731f547575fe081daf262fd5cdf0"
   solver-name = "gps-cdcl"
   solver-version = 1

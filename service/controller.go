@@ -55,7 +55,7 @@ func (s *service) CreateVolume(
 			} else {
 				// Generate a random size that is somewhere between the min
 				// and max limits provided by the request.
-				vol.capacityBytes = uint64(rand.Int63n(int64(cr.LimitBytes))) +
+				vol.capacityBytes = rand.Int63n(cr.LimitBytes) +
 					cr.RequiredBytes
 			}
 		}
@@ -66,7 +66,7 @@ func (s *service) CreateVolume(
 		}
 
 		return &csi.CreateVolumeResponse{
-			VolumeInfo: vol.toCSIVolInfo(),
+			Volume: vol.toCSIVolInfo(),
 		}, nil
 	}
 
@@ -117,7 +117,7 @@ func (s *service) CreateVolume(
 	}
 
 	return &csi.CreateVolumeResponse{
-		VolumeInfo: vol.toCSIVolInfo(),
+		Volume: vol.toCSIVolInfo(),
 	}, nil
 }
 
@@ -148,7 +148,7 @@ func (s *service) ControllerPublishVolume(
 	*csi.ControllerPublishVolumeResponse, error) {
 
 	// Get the existing volume info.
-	vol, err := s.getVolumeInfo(req.VolumeId)
+	vol, err := s.getVolume(req.VolumeId)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (s *service) ControllerPublishVolume(
 	}
 
 	return &csi.ControllerPublishVolumeResponse{
-		PublishVolumeInfo: map[string]string{"path": devPath},
+		PublishInfo: map[string]string{"path": devPath},
 	}, nil
 }
 
@@ -268,7 +268,7 @@ func (s *service) ValidateVolumeCapabilities(
 	*csi.ValidateVolumeCapabilitiesResponse, error) {
 
 	// Get the existing volume info.
-	vol, err := s.getVolumeInfo(req.VolumeId)
+	vol, err := s.getVolume(req.VolumeId)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func (s *service) ListVolumes(
 			return nil, err
 		}
 		rep.Entries[i] = &csi.ListVolumesResponse_Entry{
-			VolumeInfo: vol.toCSIVolInfo(),
+			Volume: vol.toCSIVolInfo(),
 		}
 	}
 

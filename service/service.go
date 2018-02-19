@@ -27,10 +27,10 @@ const (
 	Name = "com.rexray.vfs"
 
 	// VendorVersion is the version of this CSP SP.
-	VendorVersion = "0.2.1"
+	VendorVersion = "0.3.0"
 
 	// SupportedVersions is a list of the CSI versions this SP supports.
-	SupportedVersions = "0.0.0, 0.1.0"
+	SupportedVersions = "0.2.0"
 
 	infoFileName = ".info.json"
 )
@@ -157,13 +157,13 @@ func (s *service) BeforeServe(
 
 type volumeInfo struct {
 	csi.CreateVolumeRequest
-	capacityBytes uint64
+	capacityBytes int64
 	path          string
 	infoPath      string
 }
 
-func (v *volumeInfo) toCSIVolInfo() *csi.VolumeInfo {
-	return &csi.VolumeInfo{
+func (v *volumeInfo) toCSIVolInfo() *csi.Volume {
+	return &csi.Volume{
 		Id:            v.Name,
 		CapacityBytes: v.capacityBytes,
 		Attributes:    v.Parameters,
@@ -178,7 +178,7 @@ func (v *volumeInfo) MarshalJSON() ([]byte, error) {
 			"failed to marshal create request: %v", err)
 	}
 	return json.Marshal(struct {
-		CapacityBytes uint64          `json:"capacity_bytes"`
+		CapacityBytes int64           `json:"capacity_bytes"`
 		CreateRequest json.RawMessage `json:"create_request"`
 	}{
 		CapacityBytes: v.capacityBytes,
@@ -188,7 +188,7 @@ func (v *volumeInfo) MarshalJSON() ([]byte, error) {
 
 func (v *volumeInfo) UnmarshalJSON(data []byte) error {
 	obj := struct {
-		CapacityBytes uint64          `json:"capacity_bytes"`
+		CapacityBytes int64           `json:"capacity_bytes"`
 		CreateRequest json.RawMessage `json:"create_request"`
 	}{}
 	if err := json.Unmarshal(data, &obj); err != nil {
@@ -235,7 +235,7 @@ func (v *volumeInfo) load() error {
 	return dec.Decode(&v)
 }
 
-func (s *service) getVolumeInfo(idOrName string) (*volumeInfo, error) {
+func (s *service) getVolume(idOrName string) (*volumeInfo, error) {
 
 	// Get the path of the volume and ensure it exists.
 	volPath := path.Join(s.vol, idOrName)

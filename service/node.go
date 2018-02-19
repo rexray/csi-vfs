@@ -22,7 +22,7 @@ func (s *service) NodePublishVolume(
 	*csi.NodePublishVolumeResponse, error) {
 
 	// Get the existing volume info.
-	vol, err := s.getVolumeInfo(req.VolumeId)
+	vol, err := s.getVolume(req.VolumeId)
 	if err != nil {
 		return nil, err
 	}
@@ -201,17 +201,17 @@ func (s *service) NodeUnpublishVolume(
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (s *service) GetNodeID(
+func (s *service) NodeGetId(
 	ctx context.Context,
-	req *csi.GetNodeIDRequest) (
-	*csi.GetNodeIDResponse, error) {
+	req *csi.NodeGetIdRequest) (
+	*csi.NodeGetIdResponse, error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
-	return &csi.GetNodeIDResponse{NodeId: hostname}, nil
+	return &csi.NodeGetIdResponse{NodeId: hostname}, nil
 }
 
 func (s *service) NodeProbe(
