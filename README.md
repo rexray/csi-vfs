@@ -12,7 +12,7 @@ of other programs.
 CSI-VFS can be installed with Go and the following command:
 
 ```bash
-$ go get github.com/thecodeteam/csi-vfs
+$ go get github.com/rexray/csi-vfs
 ```
 
 The resulting binary will be installed to `$GOPATH/bin/csi-vfs`.
@@ -33,11 +33,11 @@ any of the standard exit signals.
 The CSI specification uses the gRPC protocol for plug-in communication.
 The easiest way to interact with a CSI plug-in is via the Container
 Storage Client (`csc`) program provided via the
-[GoCSI](https://github.com/thecodeteam/gocsi) project:
+[GoCSI](https://github.com/rexray/gocsi) project:
 
 ```bash
-$ go get github.com/thecodeteam/gocsi
-$ go install github.com/thecodeteam/gocsi/csc
+$ go get github.com/rexray/gocsi
+$ go install github.com/rexray/gocsi/csc
 ```
 
 ## Configuration
@@ -57,7 +57,7 @@ directories can be configured with the following environment variables:
 
 ### GoCSI
 The CSI-VFS SP is built using GoCSI. Please see its
-[configuration section](https://github.com/thecodeteam/gocsi#configuration)
+[configuration section](https://github.com/rexray/gocsi#configuration)
 for a complete list of the environment variables that may be used to
 configure this SP.
 

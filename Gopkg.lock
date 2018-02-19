@@ -2,6 +2,18 @@
 
 
 [[projects]]
+  name = "github.com/akutz/gofsutil"
+  packages = ["."]
+  revision = "56ae374ef75adf5ca8ea6b4b79d97175cb86deb2"
+  version = "v0.1.2"
+
+[[projects]]
+  name = "github.com/akutz/gosync"
+  packages = ["."]
+  revision = "94b0033d0b5fc254594c3174329c19356c2c4f63"
+  version = "v0.1.0"
+
+[[projects]]
   name = "github.com/container-storage-interface/spec"
   packages = ["lib/go/csi"]
   revision = "9e88e4bfabeca1b8e4810555815f112159292ada"
@@ -52,6 +64,24 @@
   version = "v1.0"
 
 [[projects]]
+  name = "github.com/rexray/gocsi"
+  packages = [
+    ".",
+    "context",
+    "csc",
+    "csc/cmd",
+    "middleware/logging",
+    "middleware/requestid",
+    "middleware/serialvolume",
+    "middleware/serialvolume/etcd",
+    "middleware/serialvolume/types",
+    "middleware/specvalidator",
+    "utils"
+  ]
+  revision = "95eaf85960cf6b16658abd825fe60576bbc5e8e4"
+  version = "v0.3.3"
+
+[[projects]]
   branch = "master"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -68,36 +98,6 @@
   packages = ["."]
   revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
   version = "v1.0.0"
-
-[[projects]]
-  name = "github.com/thecodeteam/gocsi"
-  packages = [
-    ".",
-    "context",
-    "csc",
-    "csc/cmd",
-    "middleware/logging",
-    "middleware/requestid",
-    "middleware/serialvolume",
-    "middleware/serialvolume/etcd",
-    "middleware/serialvolume/types",
-    "middleware/specvalidator",
-    "utils"
-  ]
-  revision = "9260f643b76fc3eb889219349fbe16eaf6a3a538"
-  version = "v0.3.2"
-
-[[projects]]
-  name = "github.com/thecodeteam/gofsutil"
-  packages = ["."]
-  revision = "c8c8c91566a91a907494e33a631b1b95c4aa0f19"
-  version = "v0.1.0"
-
-[[projects]]
-  name = "github.com/thecodeteam/gosync"
-  packages = ["."]
-  revision = "94b0033d0b5fc254594c3174329c19356c2c4f63"
-  version = "v0.1.0"
 
 [[projects]]
   branch = "master"
@@ -176,6 +176,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c3a34d24a553218bac78b74e84ea2e047dfaa8c2a307ba7cc6ec60f31b43933d"
+  inputs-digest = "126f3616d04c2d4f2370ab36aa0c86dc0c52f3d5a7f58de6feab0bfa613f7521"
   solver-name = "gps-cdcl"
   solver-version = 1

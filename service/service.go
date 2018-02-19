@@ -10,21 +10,21 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/akutz/gofsutil"
 	"github.com/golang/protobuf/jsonpb"
 	log "github.com/sirupsen/logrus"
-	"github.com/thecodeteam/gofsutil"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 
-	"github.com/thecodeteam/gocsi"
-	csictx "github.com/thecodeteam/gocsi/context"
+	"github.com/rexray/gocsi"
+	csictx "github.com/rexray/gocsi/context"
 )
 
 const (
 	// Name is the name of this CSI SP.
-	Name = "com.thecodeteam.vfs"
+	Name = "com.rexray.vfs"
 
 	// VendorVersion is the version of this CSP SP.
 	VendorVersion = "0.2.1"

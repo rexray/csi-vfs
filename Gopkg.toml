@@ -3,7 +3,7 @@
 #
 # Refer to https://github.com/toml-lang/toml for detailed TOML docs.
 required = [
-  "github.com/thecodeteam/gocsi/csc",
+  "github.com/rexray/gocsi/csc",
 ]
 
 [prune]
@@ -12,5 +12,5 @@ required = [
   unused-packages = true
 
 [[constraint]]
-  version = "v0.3.2"
-  name = "github.com/thecodeteam/gocsi"
+  version = "v0.3.3"
+  name = "github.com/rexray/gocsi"

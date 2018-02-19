@@ -81,3 +81,13 @@ func (fs *FS) GetMounts(ctx context.Context) ([]Info, error) {
 func (fs *FS) GetDevMounts(ctx context.Context, dev string) ([]Info, error) {
 	return fs.getDevMounts(ctx, dev)
 }
+
+// ValidateDevice evalutes the specified path and determines whether
+// or not it is a valid device. If true then the provided path is
+// evaluated and returned as an absolute path without any symlinks.
+// Otherwise an empty string is returned.
+func (fs *FS) ValidateDevice(
+	ctx context.Context, source string) (string, error) {
+
+	return fs.validateDevice(ctx, source)
+}

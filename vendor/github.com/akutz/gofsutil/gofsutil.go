@@ -94,3 +94,11 @@ func EvalSymlinks(ctx context.Context, symPath *string) error {
 	*symPath = realPath
 	return nil
 }
+
+// ValidateDevice evalutes the specified path and determines whether
+// or not it is a valid device. If true then the provided path is
+// evaluated and returned as an absolute path without any symlinks.
+// Otherwise an empty string is returned.
+func ValidateDevice(ctx context.Context, source string) (string, error) {
+	return fs.ValidateDevice(ctx, source)
+}

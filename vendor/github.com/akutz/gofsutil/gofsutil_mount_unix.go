@@ -5,6 +5,7 @@ package gofsutil
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -120,4 +121,28 @@ func (fs *FS) getDevMounts(ctx context.Context, dev string) ([]Info, error) {
 	}
 
 	return mountInfos, nil
+}
+
+func (fs *FS) validateDevice(
+	ctx context.Context, source string) (string, error) {
+
+	if _, err := os.Lstat(source); err != nil {
+		return "", err
+	}
+
+	// Eval symlinks to ensure the specified path points to a real device.
+	if err := EvalSymlinks(ctx, &source); err != nil {
+		return "", err
+	}
+
+	st, err := os.Stat(source)
+	if err != nil {
+		return "", err
+	}
+
+	if st.Mode()&os.ModeDevice == 0 {
+		return "", fmt.Errorf("invalid device: %s", source)
+	}
+
+	return source, nil
 }

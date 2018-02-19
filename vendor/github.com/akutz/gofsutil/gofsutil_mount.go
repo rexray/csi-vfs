@@ -15,18 +15,23 @@ import (
 // https://www.kernel.org/doc/Documentation/filesystems/proc.txt
 const ProcMountsFields = 9
 
-// Info is information about a single mount point.
+// Info describes a mounted filesystem.
+//
+// Please note that all fields that represent filesystem paths must
+// be absolute and not contain any symlinks.
 type Info struct {
-	// Device is the device on which the filesystem is mounted.
+	// Device is the filesystem path of the device to which the filesystem is
+	// mounted.
 	Device string
 
-	// Path is the filesystem path to which the device is mounted.
+	// Path is the filesystem path to which Device is mounted.
 	Path string
 
 	// Source may be set to one of two values:
 	//
 	//   1. If this is a bind mount created with "bindfs" then Source
-	//      is set to the filesystem path bind mounted to Path.
+	//      is set to the filesystem path (absolute, no symlinks)
+	//      bind mounted to Path.
 	//
 	//   2. If this is any other type of mount then Source is set to
 	//      a concatenation of the mount source and the root of
@@ -45,7 +50,8 @@ type Info struct {
 	// Type is the filesystem type.
 	Type string
 
-	// Opts are the mount options used to create this mount point.
+	// Opts are the mount options (https://linux.die.net/man/8/mount)
+	// used to mount the filesystem.
 	Opts []string
 }
 

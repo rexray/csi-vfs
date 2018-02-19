@@ -5,8 +5,8 @@ package main
 import "C"
 
 import (
-	"github.com/thecodeteam/csi-vfs/provider"
-	"github.com/thecodeteam/csi-vfs/service"
+	"github.com/rexray/csi-vfs/provider"
+	"github.com/rexray/csi-vfs/service"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
